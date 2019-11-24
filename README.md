@@ -1,2 +1,2 @@
 # sFIX-IB
-A FIX engine for Interactive Brokers using Socket and Simplefix
+A Python/Cython FIX engine for Interactive Brokers using Socket and Simplefix
