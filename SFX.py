@@ -10,9 +10,9 @@ import simplefix
 import socket
 import sys
 
-#import quickfix as fix -> extend fix.Application (still doesnt work -- and slow)
 
-'''Maybe better to split Socket into it's own class'''
+
+#Better to split socket into it's own class.
 class Socket():
     
     def __init__(self):
