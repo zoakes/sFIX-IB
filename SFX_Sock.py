@@ -66,7 +66,19 @@ class Socket():
         else:
             print('Error Connecting')
             return 0
+    
+    #Make sure no indent errors
+    def leanSend(self,msg):
+        try:
+            print('Sending {}'.format(msg))
+            self.socket.sendall(msg)
             
+        except self.socket.error as err:
+            print('Error {}'.format(err))
+            
+        finally:
+            self.socket.close()
+            return 'Closing Socket'        
 
                 
             
@@ -372,6 +384,16 @@ if __name__ == '__main__':
     
     c.cnct()
     c.sendAll(buf)
+    
+    #c.cnct()
+    
+    #BM
+    import time
+    
+    t1 = time.time_ns()
+    c.leanSend(buf) #38us - 150us 
+    t2 = time.time_ns()
+    print((t2-t1)/1000)
     
     
     
