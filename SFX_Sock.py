@@ -14,14 +14,15 @@ import sys
 
 ORDERS = {}
 SIDES = {}
+MSGS = []
 
-#import quickfix as fix -> extend fix.Application (still doesnt work -- and I would guess it would run slow)
+#import quickfix as fix -> 
+#could extend fix.Application (still doesnt work -- and I think this is faster as is)
 
-'''Maybe better to split Socket into it's own class?'''
+
 class Socket():
 
     
-    '''#REPLACE W/ FIX SOCKET -- (could use quickFix.SocketAcceptor())?'''
     def __init__(self,IP = '172.217.8.164', port=80):
         self.IP =  IP
         self.port = port
@@ -75,7 +76,6 @@ class Socket():
         
 
 class SFIX():
-    #ordId = 0
     testID = 0
     
     def __init__(self):
@@ -203,7 +203,7 @@ class SFIX():
         buf = pkt.encode()
         return buf        
     
-    '''Eventually == create dicts for each field; ex: msgType[execReport] = 8'''
+
     def appSend(self,FixV='FIX.4.2',msgType='D',exType='E',symbol='MSFT',side='1',qty='10',ordType='1',msg=''):
         
         pkt = FixMessage()
@@ -219,7 +219,7 @@ class SFIX():
         pkt.append_utc_timestamp(52, precision=6, header=True) #Timestamp
         
         pkt.append_pair(11,self.getClOrdId)        #May need to run self.getClOrdId()
-        pkt.append_pair(150,exType) #Exec Type  -- 'replace' 
+        pkt.append_pair(150,exType) #Exec Type   
         pkt.append_pair(55,symbol) #Symbol
         pkt.append_pair(167,self.SecType) 
         pkt.append_pair(54,side) #SIDE -- 1 = Buy
