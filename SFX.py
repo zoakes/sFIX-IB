@@ -10,9 +10,9 @@ import simplefix
 import socket
 import sys
 
-#import quickfix as fix -> extend fix.Application (still doesnt work -- and I would guess it would run slow)
+#import quickfix as fix -> extend fix.Application (still doesnt work -- and slow)
 
-'''Maybe better to split Socket into it's own class?'''
+'''Maybe better to split Socket into it's own class'''
 class Socket():
     
     def __init__(self):
@@ -32,7 +32,6 @@ class Socket():
         
 
 class SFIX():
-    #ordId = 0
     testID = 0
     
     def __init__(self):
@@ -152,7 +151,7 @@ class SFIX():
         buf = pkt.encode()
         return buf        
     
-    '''Eventually == create dicts for each field; ex: msgType[execReport] = 8'''
+    
     def appSend(self,FixV='FIX.4.2',msgType='D',exType='E',symbol='MSFT',side='1',qty='10',ordType='1',msg=''):
         
         pkt = FixMessage()
@@ -203,11 +202,33 @@ class SFIX():
         '''Temp -- replace now that we have parse'''
         p = simplefix.FixParser()
         p.append_buffer(buf)
-        m = p.get_message()
-        
+        m = p.get_message()   
         lastQty = m.get(32) 
-            
         return lastQty
+    
+    def fieldDicts(self,field):
+        if field == 40:
+            ordTypeD = {
+                'mkt': '0',
+                'lmt':'2',
+                'stop':'3',
+                'slmt':'4',
+                'mit':'J',
+                'peg':'P'
+            }
+            dct = ordTypeD
+        elif field == 54:
+            sideD = {
+                'buy':'1',
+                'sell':'2',
+                'buy-':'3',
+                'sell+':'4',
+                'sellshort':'5'
+            }
+            dct = sideD
+        else:
+            print('Error -- Enter field 40 or 54')
+        return dct
 
 if __name__ == '__main__':
     s = SFIX()
@@ -228,10 +249,10 @@ if __name__ == '__main__':
     
     s.connect()
     
-    buf = s.leanBuy('MSFT','100') #Incrementing works!
+    buf = s.leanBuy('MSFT','100') 
     s.parse(buf)
     
-    bb = s.leanSS('MSFT','100')
+    bb = s.leanSS('MSFT','100') #ClOrdId Increment tested 
     s.parse(bb)
     
     b = s.leanSS('MSFT','100')
