@@ -7,21 +7,23 @@ Created on Sun Nov 24 15:31:50 2019
 """
 
 import simplefix
+import time
 import socket
 import sys
 
 #GLOBALS
+DEBUG = True
 
 ORDERS = {}
 SIDES = {}
 MSGS = []
 
-#import quickfix as fix -> 
-#could extend fix.Application (still doesnt work -- and I think this is faster as is)
+ 
 
 
 class Socket():
-
+    HB = 10
+    
     
     def __init__(self,IP = '172.217.8.164', port=80):
         self.IP =  IP
@@ -41,10 +43,26 @@ class Socket():
             print('Socket creation failed: {}'.format(err))
             return 0
         
+    def sendHB(self):
+        print('Sending HB to {}'.format(self.IP))
+        while self.connected:
+            self.socket.sendall(b'Heartbeat')
+            if DEBUG:
+                print('Time: {}'.format(datetime.datetime.now()))
+            sleep(self.HB)
+        
     def closeSocket(self):
         s = self.socket
         cls = s.close()
         return cls
+    
+    def sendHB(self):
+        print('Sending HB to {}'.format(self.IP))
+        while self.connected:
+            self.socket.sendall(b'Heartbeat')
+            if DEBUG:
+                print('Time: {}'.format(datetime.datetime.now()))
+            sleep(self.HB)
     
         
     def sendAll(self,msg):
@@ -59,7 +77,7 @@ class Socket():
             except self.socket.error as err:
                 print('Error Sending {}'.format(err))
                 
-            finally:
+            finally: #Will need to move this to end of main() -- connection should be continuous **
                 print('Closing socket')
                 self.socket.close()
                 return 1
@@ -67,7 +85,7 @@ class Socket():
             print('Error Connecting')
             return 0
     
-    #Make sure no indent errors
+    
     def leanSend(self,msg):
         try:
             print('Sending {}'.format(msg))
@@ -117,8 +135,8 @@ class SFIX():
     
     def closeSocket(self):
         s = self.socket
-        cls = s.close()
         print('Closing socket {}'.format(self.IP))
+        cls = s.close()
         return cls
     
 
