@@ -10,28 +10,72 @@ import simplefix
 import socket
 import sys
 
-#import quickfix as fix -> extend fix.Application (still doesnt work -- and slow)
+#GLOBALS
 
-'''Maybe better to split Socket into it's own class'''
+ORDERS = {}
+SIDES = {}
+
+#import quickfix as fix -> extend fix.Application (still doesnt work -- and I would guess it would run slow)
+
+'''Maybe better to split Socket into it's own class?'''
 class Socket():
+
     
-    def __init__(self):
-        self.IP = '172.217.8.164' #REPLACE W/ FIX SOCKET -- (could use quickFix.SocketAcceptor())?
-        self.port = 80
+    '''#REPLACE W/ FIX SOCKET -- (could use quickFix.SocketAcceptor())?'''
+    def __init__(self,IP = '172.217.8.164', port=80):
+        self.IP =  IP
+        self.port = port
         self.socket = socket.socket()
+        self.connected = False
+        
         
     def cnct(self):
         s = self.socket
         try:
             s.connect((self.IP,self.port))
             print('Socket connected to {} on port {}'.format(self.IP,self.port))
+            self.connected = True
             return 1
         except socket.error as err:
             print('Socket creation failed: {}'.format(err))
             return 0
         
+    def closeSocket(self):
+        s = self.socket
+        cls = s.close()
+        return cls
+    
+        
+    def sendAll(self,msg):
+        #try:
+        if self.connected is False:
+            self.cnct() 
+        elif self.connected is True:
+            try:
+                print('Sending {!r} \n to socket {}'.format(msg,self.IP))
+                self.socket.sendall(msg)
+                
+            except self.socket.error as err:
+                print('Error Sending {}'.format(err))
+                
+            finally:
+                print('Closing socket')
+                self.socket.close()
+                return 1
+        else:
+            print('Error Connecting')
+            return 0
+            
+
+                
+            
+        
+        
+        
+        
 
 class SFIX():
+    #ordId = 0
     testID = 0
     
     def __init__(self):
@@ -58,6 +102,14 @@ class SFIX():
             txt = "socket creation failed with error {}".format(err)
         print(txt) #Later Log this
         return txt
+    
+    def closeSocket(self):
+        s = self.socket
+        cls = s.close()
+        print('Closing socket {}'.format(self.IP))
+        return cls
+    
+
     
     
     def baseSend(self,symbol,side,qty,ordType):
@@ -151,7 +203,7 @@ class SFIX():
         buf = pkt.encode()
         return buf        
     
-    
+    '''Eventually == create dicts for each field; ex: msgType[execReport] = 8'''
     def appSend(self,FixV='FIX.4.2',msgType='D',exType='E',symbol='MSFT',side='1',qty='10',ordType='1',msg=''):
         
         pkt = FixMessage()
@@ -186,6 +238,7 @@ class SFIX():
         buf = pkt.encode()
         return buf
     
+    
     def parse(self,buf):
         p = simplefix.FixParser()
         p.append_buffer(buf)
@@ -202,11 +255,18 @@ class SFIX():
         '''Temp -- replace now that we have parse'''
         p = simplefix.FixParser()
         p.append_buffer(buf)
-        m = p.get_message()   
+        m = p.get_message()
+        
         lastQty = m.get(32) 
+            
         return lastQty
-    
+
+
     def fieldDicts(self,field):
+        '''
+        Create dictionaries of any confusing fields
+        Continue to add fields as you see fit.
+        '''
         if field == 40:
             ordTypeD = {
                 'mkt': '1',
@@ -226,9 +286,32 @@ class SFIX():
                 'sellshort':'5'
             }
             dct = sideD
-        else:
-            print('Error -- Enter field 40 or 54')
         return dct
+    
+    def superFD(self):
+        ordTypeD = {
+                'mkt': '1',
+                'lmt':'2',
+                'stop':'3',
+                'slmt':'4',
+                'mit':'J',
+                'peg':'P'
+            }
+        sideD = {
+                'buy':'1',
+                'sell':'2',
+                'buy-':'3',
+                'sell+':'4',
+                'sellshort':'5'
+            }
+        fields = {
+                40:ordTypeD,
+                54:sideD
+                }
+        return fields
+    
+    
+
 
 if __name__ == '__main__':
     s = SFIX()
@@ -249,14 +332,57 @@ if __name__ == '__main__':
     
     s.connect()
     
-    buf = s.leanBuy('MSFT','100') 
+    
+    buf = s.leanBuy('MSFT','100') #Incrementing works!
     s.parse(buf)
     
-    bb = s.leanSS('MSFT','100') #ClOrdId Increment tested 
+    bb = s.leanSS('MSFT','100')
     s.parse(bb)
     
     b = s.leanSS('MSFT','100')
     s.parse(b)
+    
+    '''Test dictionary formatting '''
+    print(s.fieldDicts(40))
+    sides = s.fieldDicts(54)
+    print('Buy ordType = ',sides['buy'])
+    print('Sell ordType = ',sides['sell'])
+    
+    print('SellShort ordType = ',sides['sellshort'])
+    
+    orders = s.fieldDicts(40)
+    print('Order type mkt = ',orders['mkt'])
+    print('Order -- lmt = ',orders['lmt'])
+    print('Order - mit = ',orders['mit'])
+    ORDERS = s.fieldDicts(40)
+    SIDES = s.fieldDicts(54)
+    
+    s.fieldDicts(40)
+    
+    print(ORDERS)
+    print(SIDES)
+    
+    print(s.superFD())
+    
+    dct = s.superFD()
+    
+    print(dct[40]['mkt']) #BAM
+    
+    s.closeSocket()
+    
+    c.cnct()
+    c.sendAll(buf)
+    
+    
+    
+
+        
+
+    
+    
+    
+    
+    
     
     
     
