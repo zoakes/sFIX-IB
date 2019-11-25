@@ -209,7 +209,7 @@ class SFIX():
     def fieldDicts(self,field):
         if field == 40:
             ordTypeD = {
-                'mkt': '0',
+                'mkt': '1',
                 'lmt':'2',
                 'stop':'3',
                 'slmt':'4',
