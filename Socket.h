@@ -1,4 +1,7 @@
 #pragma once
+//#include "Socket.cpp"
+
+
 
 //#include <windows.h>
 #include <winsock2.h>
@@ -12,8 +15,7 @@ using namespace std;
 #define DEFAULT_PORT "27015"
 
 
-class Socket
-{
+class Socket{
 private:
 	WSADATA wsaData;
 	int iRes;
@@ -27,8 +29,14 @@ private:
 public:
 	SOCKET ConnectSocket = INVALID_SOCKET;
 	char recvbuf[1024];
-	
 
+	/*
+	Socket();
+	~Socket();
+	int sendMessage(const char* const& msg);
+	*/
+	
+	
 	//Out is -1 if no socket, 0 if socket, no connect, and 1 if Connected
 	Socket() {
 		iRes = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -41,7 +49,7 @@ public:
 			out = 0;
 		}
 
-		//Set up default values for family, type, and protocol via STRUCT 
+		//Set up default values for family, type, and protocol via STRUCT -- confusing, but okay.
 		ZeroMemory(&hints, sizeof(hints));
 		hints.ai_family = AF_UNSPEC; //Can specify IPv6 or IPv4 -- not specified here.
 		hints.ai_socktype = SOCK_STREAM;
@@ -87,7 +95,6 @@ public:
 
 
 	~Socket() {
-	
 		iRes = shutdown(ConnectSocket, SD_SEND);
 		if(iRes == SOCKET_ERROR)
 			closesocket(ConnectSocket);
@@ -109,12 +116,5 @@ public:
 	}
 
 
-
-
-
+	
 };
-
-
-
-
-
