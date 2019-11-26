@@ -58,9 +58,9 @@ private:
 public:
   int sock = 0; //socket(AF_INET, SOCK_STREAM, 0);
 
-  TSocket(string addr="127.0.0.1",int port=4000){
+  TSocket(const char *addr="www.google.com",int port=4000){
       servaddr.sin_family = AF_INET;
-      servaddr.sin_addr.s_addr = inet_addr("www.google.com");                          //will NOT accept argument?
+      servaddr.sin_addr.s_addr = inet_addr(addr);                               //Argument accepted FINALLY. 
       servaddr.sin_port = htons(port);
 
       sockfd = socket(AF_INET, SOCK_STREAM, 0);
