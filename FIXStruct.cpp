@@ -23,6 +23,7 @@
 #include <functional>
 #include <valarray>
 #include <complex>
+#include <sstream>
 
 #include <netdb.h>
 #include <iomanip>
@@ -123,7 +124,7 @@ public:
     else {
       init_sum = fidx->second.length();
       fidx->second = value;
-      cout << "Value changed to " << value;
+      cout << "Value changed to " << value << endl;
     }
     int new_len = value.length();
     sum  += new_len - init_sum;  //Initially 10, now 8, so change is 2
@@ -144,10 +145,78 @@ public:
     pair<int,string> ClOrdID = {11, "="}; // + string(get_next_OID());
     pair<int,string> Symbol = {55 ,"IBM"};
     pair<int,string> Side = {54,"1"}; //Buy
+    pair<int,string> TransactTime = {56,""};
     pair<int,string> Qty = {38,"10"};
     pair<int,string> OrdType = {40,"0"}; //HB?
-    pair<int,string> CheckSum = {10,"160"}; // calc_sum();
-  };
+    pair<int,string> CheckSum = {10,"75"}; // calc_sum();
+  }fstruct;
+
+  stringstream leanBuy(string symbol, int qty){
+    int oid = get_ord_id();
+    cout << oid << endl;
+
+    string t = getDateTime();
+    string FIX_str = "8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=" + to_string(oid) + "|55=" + symbol +
+      "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0|10=";
+    int len = FIX_str.length();
+    FIX_str += to_string(len);
+
+    cout << FIX_str << endl;
+    std::stringstream buffer;
+    buffer << FIX_str << endl;
+    return buffer;
+  }
+
+  stringstream leanSell(string symbol,int qty){
+    int oid = get_ord_id();
+    string t = getDateTime();
+    string FIX_str = "8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=" + to_string(oid) + "|55=" + symbol +
+      "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0|10=";
+    FIX_str += to_string(FIX_str.length());
+
+    cout << FIX_str << endl;
+    cout << FIX_str << endl;
+    std::stringstream buffer;
+    buffer << FIX_str << endl;
+    return buffer;
+
+  }
+
+  map<int,string> baseOrder(string symbol,int side, int qty){
+    //fstruct.Symbol = pair<int,string>(55,symbol); Works, but not needed
+    //fstruct.Side = pair<int,string>(54,to_string(side));
+    //fstruct.Qty = pair<int,string>(38,to_string(qty));
+    change_pair(55,symbol);
+    change_pair(54,to_string(side));
+    change_pair(38,to_string(qty));
+    change_pair(56,getDateTime());
+    //return fstruct;
+    stringstream ss;
+    for(auto i : fmap){
+      cout << i.first << "=" << i.second << "|";
+      ss << i.first << "=" << i.second << "|";
+    }
+    //CHECKSUM CALCULATION 
+    ss << "10=" << to_string(sizeof(ss)/sizeof("a"));
+    cout << "10=" <<  sizeof(ss)/sizeof("i");
+
+    return fmap;
+  }
+
+
+
+  string getDateTime(){
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+    auto y = to_string(1900 + ltm->tm_year);
+    auto m = to_string(ltm->tm_mon);
+    auto d =  to_string(ltm->tm_mday);
+    auto h = to_string(ltm->tm_hour);
+    auto mn = to_string(ltm->tm_min);
+    auto s = to_string(ltm->tm_sec);
+    string time = y +  m  + d + " " + h  + ":" + mn + ":" + s;
+    return time;
+  }
 
 };
 
@@ -203,12 +272,21 @@ int main(){
   F.add_pair(38,"5");
   F.add_pair(10,to_string(F.sum)); //Not right! Fuck...
 
-  F.change_pair(55,"AMD");  //No alloc error with changing? 
+  F.change_pair(55,"AMD");  //No alloc error with changing?
 
   cout << '\n';
   F.print();
 
+  F.leanBuy("AAPL",100);
 
+  F.leanSell("AMZN",10);
+
+
+  F.getDateTime();
+
+  F.baseOrder("TSLA",1,10);
+  cout << '\n';
+  F.print();
 
 
 
