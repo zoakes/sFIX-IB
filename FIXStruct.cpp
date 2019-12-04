@@ -17,7 +17,7 @@
 #include <cctype>
 #include <algorithm>
 #include <stdexcept>
-#include <iterator> //WOW I MIGHT NIGHT HAVE HAD THIS !! this is why that shit didnt work! REGEX !!
+#include <iterator> 
 #include <sstream>
 #include <numeric>
 #include <functional>
@@ -47,8 +47,11 @@ using namespace std;
 using namespace boost;
 
 
+//Tried multiple structures first, ended up with nested Struct in map Class w/ stringstream
+
+
 struct sFX{
-  string BeginString = "8=FIX.4.2"; //"8=FIX.4.2"; //Maybe do with vector? 0 = #, then 1 = Value
+  string BeginString = "8=FIX.4.2"; //"8=FIX.4.2"; 
   string Account = {"1=U12345"};
   string MsgType = {"35=D"}; //New Order
   string TargetCompID = {"56=IB"};
@@ -74,10 +77,7 @@ struct FIXMSG{
   string Qty = {"38=","10"};
   string OrdType = {"40","=0"}; //HB?
   string CheckSum = {"10","=160"};
-
-  /*string CheckSum = str(FIXMSG.BeginString.length + FIXMSG.Account.length + FIXMSG.MsgType.length +
-  FIXMSG.TargetCompID.length + FIXMSG.ClOrdID.length + FIXMSG.Symbol.length + FIXMSG.Side.length +
-  FIXMSG.Qty.length + FIXMSG.OrdType.length) ; */
+  
 
 };
 
@@ -127,7 +127,7 @@ public:
       cout << "Value changed to " << value << endl;
     }
     int new_len = value.length();
-    sum  += new_len - init_sum;  //Initially 10, now 8, so change is 2
+    sum  += new_len - init_sum;  //Ex: Initially 10, now 8, so adding 8, subtracting 10 (-2)
 
   }
 
@@ -226,7 +226,7 @@ public:
 
 int main(){
 
-
+  //BeginIf String Structure, Map Structure, Tuple? structure 
   struct sFX s;
 
   s.BeginString = "8=FIX.4.4";
@@ -239,16 +239,15 @@ int main(){
   //f.BeginString[0] = "9";
   struct VF v;
 
-  ///Map not working out well...
+  ///Map alone not working out well...
 
   v.BeginString.insert(pair<int,string>(8,"=FIX4.2")); //= {"8","=FIX.4.2"};
   auto bs = v.BeginString;
   //cout << bs->second ;
-
-  //WTF?
-  std::map<int,string> testMap;
-  //testMap.insert(std::pair<int,int>(8,1000));
-
+   
+  //Endif String Struct / Map Struct 
+  
+  //Beginif NESTED MAP CLASS W/ STRUCT 
 
 
   FV F;
@@ -270,7 +269,7 @@ int main(){
   F.add_pair(30,"5"); //Bad alloc somehow... (with values > 1 digit)
   F.add_pair(40,"0");
   F.add_pair(38,"5");
-  F.add_pair(10,to_string(F.sum)); //Not right! Fuck...
+  F.add_pair(10,to_string(F.sum)); //Not right!?
 
   F.change_pair(55,"AMD");  //No alloc error with changing?
 
