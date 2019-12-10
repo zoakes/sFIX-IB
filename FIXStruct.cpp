@@ -17,7 +17,7 @@
 #include <cctype>
 #include <algorithm>
 #include <stdexcept>
-#include <iterator> 
+#include <iterator> //WOW I MIGHT NIGHT HAVE HAD THIS !! this is why that shit didnt work! REGEX !!
 #include <sstream>
 #include <numeric>
 #include <functional>
@@ -29,6 +29,8 @@
 #include <iomanip>
 #include <ctype.h>
 #include <fstream>
+
+#include <thread>
 
 
 #include <sys/socket.h>
@@ -42,59 +44,25 @@
 
 
 
-
+using namespace std::chrono;
+using namespace std::this_thread;
 using namespace std;
 using namespace boost;
 
 
-//Tried multiple structures first, ended up with nested Struct in map Class w/ stringstream
 
-
-struct sFX{
-  string BeginString = "8=FIX.4.2"; //"8=FIX.4.2"; 
-  string Account = {"1=U12345"};
-  string MsgType = {"35=D"}; //New Order
-  string TargetCompID = {"56=IB"};
-  string ClOrdID = {"11="}; // + string(get_next_OID());
-  string Symbol = {"55=IBM"};
-  string Side = {"54=1"}; //Buy
-  string Qty = {"38=10"};
-  string OrdType = {"40=0"}; //HB?
-  string CheckSum = {"10=160"};
-
-};
-
-
-//Maybe create a struct for each type (order, heartbeat, cancel, etc)
-struct FIXMSG{
-  string BeginString = {"8","=FIX.4.2"}; //"8=FIX.4.2"; //Maybe do with vector? 0 = #, then 1 = Value
-  string Account = {"1","=U12345"};
-  string MsgType = {"35","=D"}; //New Order
-  string TargetCompID = {"56", "=IB"};
-  string ClOrdID = {"11", "="}; // + string(get_next_OID());
-  string Symbol = {"55=","IBM"};
-  string Side = {"54","=1"}; //Buy
-  string Qty = {"38=","10"};
-  string OrdType = {"40","=0"}; //HB?
-  string CheckSum = {"10","=160"};
-  
-
-};
-
-
-struct VF{ //Dont want a map... want pairs...
-  std::map<int,string> BeginString; //= {8,"=FIX.4.2"};
-};
 
 
 ////////////////////////////////////////////////////////////////////////////////
 int ORD_ID;
+bool INCL_DT = false;
 
 class FV{
 private:
   std::map<int,string> fmap;
   std::map<int,string>::iterator fidx;
   std::pair<int,string> fval;
+
 
 
 
@@ -127,7 +95,7 @@ public:
       cout << "Value changed to " << value << endl;
     }
     int new_len = value.length();
-    sum  += new_len - init_sum;  //Ex: Initially 10, now 8, so adding 8, subtracting 10 (-2)
+    sum  += new_len - init_sum;  //Initially 10, now 8, so change is 2
 
   }
 
@@ -153,11 +121,16 @@ public:
 
   stringstream leanBuy(string symbol, int qty){
     int oid = get_ord_id();
-    cout << oid << endl;
-
-    string t = getDateTime();
+    /*string FIX_str;
+    if(INCL_DT == true){
+      string t = getDateTime();
+      FIX_str = "8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=" + to_string(oid) + "|55=" + symbol +
+        "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0|10=";
+    }
+    else*/ //To Incl DateTime in msg (not needed!)
     string FIX_str = "8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=" + to_string(oid) + "|55=" + symbol +
-      "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0|10=";
+      "|54=5|38=" + to_string(qty) + "|40=1|10=";
+
     int len = FIX_str.length();
     FIX_str += to_string(len);
 
@@ -171,10 +144,9 @@ public:
     int oid = get_ord_id();
     string t = getDateTime();
     string FIX_str = "8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=" + to_string(oid) + "|55=" + symbol +
-      "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0|10=";
+      "|54=5|56=" + t + "|38=" + to_string(qty) + "|40=0=1|10=";
     FIX_str += to_string(FIX_str.length());
 
-    cout << FIX_str << endl;
     cout << FIX_str << endl;
     std::stringstream buffer;
     buffer << FIX_str << endl;
@@ -196,11 +168,58 @@ public:
       cout << i.first << "=" << i.second << "|";
       ss << i.first << "=" << i.second << "|";
     }
-    //CHECKSUM CALCULATION 
+    //CHECKSUM CALCULATION
     ss << "10=" << to_string(sizeof(ss)/sizeof("a"));
     cout << "10=" <<  sizeof(ss)/sizeof("i");
 
     return fmap;
+  }
+
+  stringstream leanHB(){
+    int oid = get_ord_id();
+    string t = getDateTime();
+    string FIX_str = "8=FIX.4.2|9=51|35=0|1=U123456|56=IB|11=" + to_string(oid) + "|55=None" +
+      "|54=5|56=" + t + "|38=" + "0" + "|40=0|10=";
+    FIX_str += to_string(FIX_str.length());
+
+    cout << FIX_str << endl;
+    std::stringstream buffer;
+    buffer << FIX_str << endl;
+    return buffer;
+  }
+
+  static stringstream sHB(){
+    FV fl; //Must create a local Class object to call these
+    int oid = fl.get_ord_id();
+    string t = fl.getDateTime();
+    string FIX_str = "8=FIX.4.2|9=51|35=0|1=U123456|56=IB|11=0|55=None|54=5|56=" + t + "|38=" + "0" + "|40=0|10=";
+    FIX_str += to_string(FIX_str.length());
+
+    cout << FIX_str << endl;
+    std::stringstream buffer;
+    buffer << FIX_str << endl;
+    return buffer;
+  }
+
+  void every(int delay){
+    time_t now = time(0);
+    time_t next = time(0) + delay;
+    while(true){
+      //time.sleep(max(0,next - time(0)));
+      //std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+      sleep_until(system_clock::now() + seconds(30));
+      leanHB();
+      /*
+      try{
+        //cout << "HB" << endl;
+        leanHB();
+      }
+      catch (const std::exception& e){
+        cerr << "Error calling HB" << endl;
+        cout << e.what() << endl;
+      }*/
+      next += (time(0) - next) / delay * delay + delay;
+    }
   }
 
 
@@ -221,33 +240,37 @@ public:
 };
 
 
+void every(int delay){ //incl function
+  time_t now = time(0);
+  time_t next = time(0) + delay;
+  while(true){
+    //time.sleep(max(0,next - time(0)));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(delay));  //This line alone may allow threading?
+    sleep_until(system_clock::now() + seconds(30));
+    try{
+      cout << "HB" << endl;
+      FV::sHB();
+    }
+    catch (const std::exception& e){
+      cerr << "Error calling HB" << endl;
+      cout << e.what() << endl;
+    }
+    next += (time(0) - next) / delay * delay + delay;
+  }
+}
 
-//int FV::ORD_ID = 0;
+
+//int FV::ORD_ID = 0; //Proper use of STATIC just in case
 
 int main(){
 
-  //BeginIf String Structure, Map Structure, Tuple? structure 
-  struct sFX s;
+  /*
 
-  s.BeginString = "8=FIX.4.4";
-  cout << s.BeginString << endl;
+  */
+  //WTF?
+  std::map<int,string> testMap;
+  //testMap.insert(std::pair<int,int>(8,1000));
 
-  cout << s.Symbol << endl;
-
-  struct FIXMSG f;
-  cout << f.BeginString;
-  //f.BeginString[0] = "9";
-  struct VF v;
-
-  ///Map alone not working out well...
-
-  v.BeginString.insert(pair<int,string>(8,"=FIX4.2")); //= {"8","=FIX.4.2"};
-  auto bs = v.BeginString;
-  //cout << bs->second ;
-   
-  //Endif String Struct / Map Struct 
-  
-  //Beginif NESTED MAP CLASS W/ STRUCT 
 
 
   FV F;
@@ -269,7 +292,7 @@ int main(){
   F.add_pair(30,"5"); //Bad alloc somehow... (with values > 1 digit)
   F.add_pair(40,"0");
   F.add_pair(38,"5");
-  F.add_pair(10,to_string(F.sum)); //Not right!?
+  F.add_pair(10,to_string(F.sum)); //Not right! Fuck...
 
   F.change_pair(55,"AMD");  //No alloc error with changing?
 
@@ -277,6 +300,7 @@ int main(){
   F.print();
 
   F.leanBuy("AAPL",100);
+
 
   F.leanSell("AMZN",10);
 
@@ -287,6 +311,36 @@ int main(){
   cout << '\n';
   F.print();
 
+  //F.baseOrder("AAPL",1,100); //30 micros
+  //F.change_pair(55,"AAPL"); //5 us
+
+  //Time it
+  auto start = std::chrono::high_resolution_clock::now();
+  F.leanBuy("AAPL",100); //4.5 us
+  F.leanSell("AMZN",10);
+  F.leanBuy("AMD",20);
+  F.leanSell("AAPL",100);
+  auto elapsed = std::chrono::high_resolution_clock::now() - start;
+
+  long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+  cout << "Micros: " <<  microseconds/4 << endl;
+
+
+  /////////////////// BEGIN HEARTBEAT ////////////////////////////////
+  //every(30); BE CAREFUL WITH THIS SHIT!
+
+  thread t;
+  //thread t5(F.every,30);  //Must be static to call like this? (or leanHB must be)
+  F.leanHB();
+
+  FV::sHB(); //Bingo -- Static works if needed later !
+  F.sHB(); //Works either way.
+
+  ////////////// Begin Threading HB ///////////////////
+  //HEARTBEAT -- FINAL ! (KEEP IT STATIC, keep it seperate)
+  //every(30); //Works !
+
+  thread t2(every,30); ///Works -- think it's a unix issue.
 
 
 return 0;
