@@ -10,15 +10,38 @@ import simplefix
 import socket
 import sys
 import time
+import datetime
 import logging
+import numpy as np
+
+import select
+import threading 
+import calendar
 
 #GLOBALS
 
 ORDERS = {}
 SIDES = {}
 
+DEBUG = True
+
 LOGGING = False #Log in file
 OUTPUT_LOG = True #Print log to console 
+
+
+#Heartbeat management function
+def every(delay, task):
+  next_time = time.time() + delay
+  while True:
+    time.sleep(max(0, next_time - time.time()))
+    try:
+      task()
+    except Exception:
+      print('Error threading!')
+    next_time += (time.time() - next_time) // delay * delay + delay
+    
+def test():
+    print('Testthread',time.time())
 
 
 
@@ -55,6 +78,7 @@ class Socket():
             return 1
         except socket.error as err:
             self.log('Socket creation failed: {}'.format(err))
+            #Auto False
             return 0
         
     def closeSocket(self):
@@ -96,10 +120,79 @@ class Socket():
             self.log('Error {}'.format(err))
             
         finally:
-            self.socket.close()
+            self.socket.close() #Need to remove this
             return 'Closing Socket'
         
+        
+    def leanHB(self):
+        if self.connected:
+            self.log('Sending {} HB to {}'.format(datetime.datetime.now(),self.IP))
+            self.socket.sendall(b'')
+        return 0
+        
+    
+    
+    
+    def run(self):
+        '''Works, but repetitive -- and bloated'''
+        now = datetime.datetime.now().time()
+
+        EOD = datetime.time(hour=18) 
+        BOD = datetime.time(hour=9,minute=30)
+        
+        #Maybe should connect?
+        if not self.connected:
+            self.cnct()
+        
+        
+        #Begin HB / Market Day
+        if BOD < now < EOD and self.connected:
+            #threading.Thread(target=lambda: every(30,test)).start() #Works !
+            #threading.Thread(target=lambda: self.leanHB()).start()  SHOULD work, but doesnt inside class?
+            self.log('Market Open for day ...')
+
+        while self.connected:
             
+            #Check market hours + HB 
+            if now > EOD:
+                print('Market Closed for day...')
+                sys.exit()
+                self.closeSocket()
+                self.connected = False
+                break
+            
+            if now < BOD: #Need to test still
+                print(f'Waiting for open at {BOD}')
+                continue
+                
+            
+            if DEBUG:
+                print('Running')
+                
+                go_long, go_short = False, False
+                if np.random.randint(-100,100) > 0:
+                    go_long = True
+                else:
+                    go_short = True
+                
+                trailcat = np.random.randint(-100,100) > 50 and (go_long or go_short)
+    
+                if go_long:
+                    self.log('Long Entry')
+                    self.leanSend('buy_test')
+                    
+                if go_short:
+                    self.log('Short Entry')
+                    self.leanSend('sell_test')
+                    
+                if trailcat:
+                    self.log('Trail / Cat')
+                    break #To not run endlessly 
+                
+        self.log('System closed for day')
+        if self.connected:
+            self.closeSocket()
+            self.log('Closing Socket') #End session Msg?
 
                 
             
@@ -179,8 +272,9 @@ class SFIX():
         pkt.append_pair(1,self.acct_number)
         pkt.append_pair(35,'D') #Always
         pkt.append_pair(56,self.TgtID)
+        pkt.append_utc_timestamp(52, precision=6, header=True)
         
-        newID = self.getClOrdId()
+        newID = self.getClOrdId() #This may not work
         pkt.append_pair(11,newID)
         
         pkt.append_pair(55,symbol)
@@ -191,14 +285,48 @@ class SFIX():
         buf = pkt.encode()
         return buf
     
-    def leanBuy(self,symbol,qty):
+    def baseHB(self):
+        pkt = simplefix.FixMessage()
+        
+        pkt.append_pair(8,self.FV)
+        pkt.append_pair(1,self.acct_number)
+        pkt.append_pair(35,'0') #Always
+        
+        self.testID = self.testID + 1
+        pkt.append_pair(56,self.testID)
+        pkt.append_utc_timestamp(52, precision=6, header=True)
+        
+        newID = self.getClOrdId() #This may not work
+        pkt.append_pair(11,newID)
+        
+        pkt.append_pair(55,'None')
+        pkt.append_pair(38,0)
+        buf = pkt.encode()
+        return buf
+    
+    
+    def leanHB(self):
+        msg = simplefix.FixMessage()
+        
+        self.testID = self.testID + 1
+        newID = str(self.testID)
+        FIX_str = '8=FIX.4.2|9=51|35=0|1=U123456|56=IB|11=' + newID + '|55=None|54=1|38=0|40=0'
+        msg.append_string(FIX_str)
+        msg.append_pair(35,'0')
+
+        if DEBUG: print(FIX_str)
+        msg.append_utc_timestamp(52, precision=6, header=True)
+        
+        b = msg.encode()
+        return b
+    
+    def leanBuy(self,symbol,qty): 
         msg = simplefix.FixMessage()
         
         self.testID = self.testID + 1
         newID = str(self.testID) 
         
-        FIX_str = '8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=' + newID + \
-        '|55=' + symbol + '|54=1|38=' + qty + '|40=0|10=1663'
+        FIX_str = '8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=' + newID + '|55=' + symbol + '|54=1|38=' + str(qty) + '|40=1' 
         msg.append_string(FIX_str)
         msg.append_pair(35,'8')
         b = msg.encode()
@@ -210,10 +338,9 @@ class SFIX():
         self.testID = self.testID + 1
         newID = str(self.testID)
         
-        FIX_str = '8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=' + newID + \
-        '|55=' + symbol + '|54=5|38=' + qty + '|40=0|10=1663'
+        FIX_str = '8=FIX.4.2|9=51|35=D|1=U123456|56=IB|11=' + newID + '|55=' + symbol + '|54=5|38=' + str(qty) + '|40=1' 
         msg.append_string(FIX_str)
-        msg.append_pair(35,'8')
+        msg.append_pair(35,'8') #8 or D?
         b = msg.encode()        
         return b
 
@@ -225,8 +352,9 @@ class SFIX():
         pkt.append_pair(1,self.acct_number)
         pkt.append_pair(35,'D') #Always
         pkt.append_pair(56,self.TgtID)
+        pkt.append_utc_timestamp(52, precision=6, header=True)
         
-        newID = self.getClOrdId()
+        newID = self.getClOrdId() #This may not work -- use from lean
         pkt.append_pair(11,newID)
         
         pkt.append_pair(55,symbol)
@@ -240,7 +368,7 @@ class SFIX():
     '''Eventually == create dicts for each field; ex: msgType[execReport] = 8'''
     def appSend(self,FixV='FIX.4.2',msgType='D',exType='E',symbol='MSFT',side='1',qty='10',ordType='1',msg=''):
         
-        pkt = FixMessage()
+        pkt = simplefix.FixMessage()
         
         pkt.append_pair(8,FixV)
         #pkt.append_pair(9,'176') #Conf of some sort
@@ -410,11 +538,12 @@ if __name__ == '__main__':
     
     c.cnct()
     
-    
+    print('connected:',c.connected)
+
     
     t1 = time.time_ns()
 
-    c.sendAll(buf) #50 - 200 (Actually running better when connected.)
+    #c.sendAll(buf) #50 - 200 (Actually running better when connected.) (CLOSES SOCKET)
     
     #c.cnct()
 
@@ -428,6 +557,29 @@ if __name__ == '__main__':
     c.leanSend(buf) #29us - 150us 
     t2 = time.time_ns()
     print((t2-t1)/1000)
+    
+    hbl = s.leanHB()
+    buy = s.leanBuy('AMZN',10)
+    hb = s.baseHB()
+    c.leanSend(hb)
+    
+    #DUH need to parse them -- thats why they look off above 
+    
+    s.parse(hb)
+    s.parse(hbl)
+    
+    s.parse(buy)
+    
+    #HEARTBEAT
+    #TEST threading ability
+    #threading.Thread(target=lambda: every(30,test)).start()  #Works
+    
+    #Bingo
+    threading.Thread(target=lambda: every(30,s.leanHB)).start()
+    
+    print('connected:',c.connected)
+    c.run()
+    
     
     
     c.closeSocket()
